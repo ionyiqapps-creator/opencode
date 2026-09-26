@@ -1488,7 +1488,6 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
 
   const childShortcut = useCommandShortcut("session.child.first")
   const backgroundShortcut = useCommandShortcut("session.background")
-
   return (
     <>
       <For each={props.parts}>
@@ -1506,6 +1505,11 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
           )
         }}
       </For>
+      <Show when={duration()}>
+        <box paddingLeft={3}>
+          <text fg={theme.textMuted}>done in {Locale.duration(duration())}</text>
+        </box>
+      </Show>
       <Show when={props.parts.some((x) => x.type === "tool" && x.tool === "task")}>
         <box paddingTop={1} paddingLeft={3}>
           <text fg={theme.text}>
@@ -1583,104 +1587,9 @@ const PART_MAPPING = {
 
 const INLINE_TOOL_ICON_WIDTH = 2
 
-function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: AssistantMessage }) {
-  const { theme } = useTheme()
-  const ctx = use()
-  // Collapsed by default in hide mode: a single line throughout, so the
-  // layout never shifts. Click to open the full markdown block, click to close.
-  const [expanded, setExpanded] = createSignal(false)
-
-  const content = createMemo(() => {
-    // OpenRouter encrypts some reasoning blocks; drop the placeholder.
-    return props.part.text.replace("[REDACTED]", "").trim()
-  })
-  const opaque = createMemo(() => !content() && Boolean(props.part.metadata))
-  // Reasoning is finalized when the server sets `time.end` (see processor.ts).
-  // Flips independently of the parent message completing.
-  const isDone = createMemo(() => props.part.time.end !== undefined)
-  const inMinimal = createMemo(() => ctx.thinkingMode() === "hide")
-  const duration = createMemo(() => {
-    const end = props.part.time.end
-    return end === undefined ? 0 : Math.max(0, end - props.part.time.start)
-  })
-  const summary = createMemo(() => reasoningSummary(content()))
-  const syntax = createSyntaxStyleMemo(() => generateSubtleSyntax(theme))
-
-  const toggle = () => {
-    if (!inMinimal() || opaque()) return
-    setExpanded((prev) => !prev)
-  }
-
-  return (
-    <Show when={content() || opaque()}>
-      <box
-        ref={(el: BoxRenderable) => alwaysSeparate.add(el)}
-        paddingLeft={3}
-        marginTop={1}
-        flexDirection="column"
-        flexShrink={0}
-      >
-        <box onMouseUp={toggle}>
-          <ReasoningHeader
-            toggleable={inMinimal() && !opaque()}
-            open={!inMinimal() || expanded()}
-            done={isDone()}
-            title={summary().title}
-            duration={isDone() ? Locale.duration(duration()) : undefined}
-            encrypted={opaque()}
-          />
-        </box>
-        <Show when={!opaque() && (!inMinimal() || expanded()) && summary().body}>
-          <box paddingLeft={inMinimal() ? 2 : 0} marginTop={1}>
-            <code
-              filetype="markdown"
-              drawUnstyledText={false}
-              streaming={true}
-              syntaxStyle={syntax()}
-              content={summary().body}
-              conceal={ctx.conceal()}
-              fg={theme.textMuted}
-            />
-          </box>
-        </Show>
-      </box>
-    </Show>
-  )
-}
-
-function ReasoningHeader(props: {
-  toggleable: boolean
-  open: boolean
-  done: boolean
-  title: string | null
-  duration?: string
-  encrypted?: boolean
-}) {
-  const { theme } = useTheme()
-  const fg = () =>
-    props.open
-      ? RGBA.fromValues(theme.warning.r, theme.warning.g, theme.warning.b, theme.thinkingOpacity)
-      : theme.warning
-  const completed = () => {
-    if (props.encrypted) return `Thought${props.duration ? ` · ${props.duration}` : ""}`
-    const detail = [props.title, props.duration].filter(Boolean).join(" · ")
-    return `${props.toggleable ? (props.open ? "- " : "+ ") : ""}Thought${detail ? `: ${detail}` : ""}`
-  }
-
-  return (
-    <Switch>
-      <Match when={!props.done}>
-        <box flexDirection="row">
-          <Spinner color={fg()}>{props.title ? "Thinking: " + props.title : "Thinking"}</Spinner>
-        </box>
-      </Match>
-      <Match when={true}>
-        <text fg={fg()} wrapMode="none">
-          {completed()}
-        </text>
-      </Match>
-    </Switch>
-  )
+function ReasoningPart(_props: { last: boolean; part: ReasoningPart; message: AssistantMessage }) {
+  // ponytail: thinking hidden entirely, no empty gap left behind
+  return <></>
 }
 
 function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
@@ -1707,16 +1616,9 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
 // Pending messages moved to individual tool pending functions
 
 function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMessage }) {
-  const ctx = use()
   const display = createMemo(() => toolDisplay(props.part.tool))
 
-  // Hide tool if showDetails is false and tool completed successfully
-  const shouldHide = createMemo(() => {
-    if (ctx.showDetails()) return false
-    if (props.part.state.status !== "completed") return false
-    return true
-  })
-
+  // ponytail: every tool stays one visible row, never hidden
   const toolprops = {
     get metadata() {
       return props.part.state.status === "pending" ? {} : (props.part.state.metadata ?? {})
@@ -1736,7 +1638,6 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
   }
 
   return (
-    <Show when={!shouldHide()}>
       <Switch>
         <Match when={display() === "bash"}>
           <Shell {...toolprops} />
@@ -1784,7 +1685,6 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
           <GenericTool {...toolprops} />
         </Match>
       </Switch>
-    </Show>
   )
 }
 
@@ -1876,8 +1776,8 @@ function InlineTool(props: {
     if (permission()) return theme.warning
     if (failed()) return theme.error
     if (hover() && props.onClick) return theme.text
-    if (props.complete) return theme.textMuted
-    return theme.text
+    if (props.complete) return theme.success
+    return theme.warning
   })
 
   return (
@@ -1930,6 +1830,22 @@ export function InlineToolRow(props: {
   onMouseOut?: () => void
   onMouseUp?: () => void
 }) {
+  const { theme } = useTheme()
+  // ponytail: live seconds while running, dim to grey 5s after done
+  const [elapsed, setElapsed] = createSignal(0)
+  const [dimmed, setDimmed] = createSignal(false)
+  createEffect(() => {
+    if (props.complete || props.failed) return
+    const t = setInterval(() => setElapsed((v) => v + 1), 1000)
+    onCleanup(() => clearInterval(t))
+  })
+  createEffect(() => {
+    if (!props.complete || props.failed) return
+    const t = setTimeout(() => setDimmed(true), 5000)
+    onCleanup(() => clearTimeout(t))
+  })
+  const display = () => (dimmed() ? theme.textMuted : props.color)
+  const cause = () => props.failure ?? props.error?.split("\n")[0] ?? ""
   return (
     <box
       paddingLeft={3}
@@ -1938,12 +1854,7 @@ export function InlineToolRow(props: {
       onMouseUp={props.onMouseUp}
       ref={(el: BoxRenderable) => {
         if (props.separate) alwaysSeparate.add(el)
-        setPreLayoutSiblingMargin(el, (previous) => {
-          return props.separate ||
-            (previous instanceof BoxRenderable && (previous.height > 1 || alwaysSeparate.has(previous)))
-            ? 1
-            : 0
-        })
+        setPreLayoutSiblingMargin(el, () => 0)
       }}
     >
       <Switch>
@@ -1955,10 +1866,10 @@ export function InlineToolRow(props: {
             fallback={
               <text
                 paddingLeft={3}
-                fg={props.color}
-                attributes={props.denied ? TextAttributes.STRIKETHROUGH : undefined}
+                fg={display()}
+                attributes={TextAttributes.BOLD}
               >
-                ~ {props.pending}
+                ~ {props.pending} · {elapsed()}s
               </text>
             }
             when={props.complete || props.failed}
@@ -1966,17 +1877,17 @@ export function InlineToolRow(props: {
             <box flexDirection="row">
               <text
                 width={INLINE_TOOL_ICON_WIDTH}
-                fg={props.failed ? props.errorColor : (props.iconColor ?? props.color)}
+                fg={props.failed ? props.errorColor : dimmed() ? theme.textMuted : (props.iconColor ?? props.color)}
                 attributes={props.denied ? TextAttributes.STRIKETHROUGH : undefined}
               >
                 {props.icon}
               </text>
               <text
                 flexGrow={1}
-                fg={props.failed ? props.errorColor : props.color}
+                fg={props.failed ? props.errorColor : display()}
                 attributes={props.denied ? TextAttributes.STRIKETHROUGH : undefined}
               >
-                {props.failed && !props.complete ? (props.failure ?? props.children) : props.children}
+                {props.failed && !props.complete ? cause() || props.children : props.children}
               </text>
             </box>
           </Show>
@@ -2044,93 +1955,25 @@ function BlockTool(props: {
 }
 
 function Shell(props: ToolProps) {
-  const { theme } = useTheme()
-  const pathFormatter = usePathFormatter()
-  const ctx = use()
-  const isRunning = createMemo(() => props.part.state.status === "running")
-  const output = createMemo(() => stripAnsi(stringValue(props.metadata.output)?.trim() ?? ""))
-  const [expanded, setExpanded] = createSignal(false)
-  const maxLines = 10
-  const maxChars = createMemo(() => maxLines * Math.max(20, ctx.width - 6))
-  const collapsed = createMemo(() => collapseToolOutput(output(), maxLines, maxChars()))
-  const limited = createMemo(() => {
-    if (expanded() || !collapsed().overflow) return output()
-    return collapsed().output
-  })
-
-  const workdirDisplay = createMemo(() => {
-    const workdir = stringValue(props.input.workdir)
-    if (!workdir || workdir === ".") return undefined
-    const formatted = pathFormatter.format(workdir)
-    if (formatted === ".") return undefined
-    return formatted
-  })
-
-  const title = createMemo(() => {
-    const wd = workdirDisplay()
-    if (!wd) return
-    return `# Running in ${wd}`
-  })
-
+  // ponytail: single line, never dump command output
+  const cmd = () => {
+    const first = (stringValue(props.input.command) ?? "").split("\n")[0] ?? ""
+    return first.length > 80 ? first.slice(0, 80) + "…" : first
+  }
   return (
-    <Switch>
-      <Match when={stringValue(props.metadata.output) !== undefined}>
-        <BlockTool
-          title={title()}
-          part={props.part}
-          onClick={collapsed().overflow ? () => setExpanded((prev) => !prev) : undefined}
-        >
-          <box gap={1}>
-            <Show when={isRunning()} fallback={<text fg={theme.text}>$ {stringValue(props.input.command)}</text>}>
-              <Spinner color={theme.text}>{stringValue(props.input.command)}</Spinner>
-            </Show>
-            <Show when={output()}>
-              <text fg={theme.text}>{limited()}</text>
-            </Show>
-            <Show when={collapsed().overflow}>
-              <text fg={theme.textMuted}>{expanded() ? "Click to collapse" : "Click to expand"}</text>
-            </Show>
-          </box>
-        </BlockTool>
-      </Match>
-      <Match when={true}>
-        <InlineTool icon="$" pending="Writing command…" complete={stringValue(props.input.command)} part={props.part}>
-          {stringValue(props.input.command)}
-        </InlineTool>
-      </Match>
-    </Switch>
+    <InlineTool icon="$" pending="Executing command…" complete={stringValue(props.input.command)} part={props.part}>
+      $ {cmd()}
+    </InlineTool>
   )
 }
 
 function Write(props: ToolProps) {
-  const { theme, syntax } = useTheme()
   const pathFormatter = usePathFormatter()
-  const code = createMemo(() => {
-    return stringValue(props.input.content) ?? ""
-  })
-
+  // ponytail: one green row, file content never dumped
   return (
-    <Switch>
-      <Match when={props.metadata.diagnostics !== undefined}>
-        <BlockTool title={"# Wrote " + pathFormatter.format(stringValue(props.input.filePath))} part={props.part}>
-          <line_number fg={theme.textMuted} minWidth={3} paddingRight={1}>
-            <code
-              conceal={false}
-              fg={theme.text}
-              filetype={filetype(stringValue(props.input.filePath))}
-              syntaxStyle={syntax()}
-              content={code()}
-            />
-          </line_number>
-          <Diagnostics diagnostics={props.metadata.diagnostics} filePath={stringValue(props.input.filePath) ?? ""} />
-        </BlockTool>
-      </Match>
-      <Match when={true}>
-        <InlineTool icon="←" pending="Preparing write…" complete={stringValue(props.input.filePath)} part={props.part}>
-          Write {pathFormatter.format(stringValue(props.input.filePath))}
-        </InlineTool>
-      </Match>
-    </Switch>
+    <InlineTool icon="←" pending="Preparing write…" complete={stringValue(props.input.filePath)} part={props.part}>
+      Write {pathFormatter.format(stringValue(props.input.filePath))}
+    </InlineTool>
   )
 }
 
@@ -2388,122 +2231,35 @@ function Execute(props: ToolProps) {
 }
 
 function Edit(props: ToolProps) {
-  const ctx = use()
-  const { theme, syntax } = useTheme()
   const pathFormatter = usePathFormatter()
-
-  const view = createMemo(() => {
-    const diffStyle = ctx.tui.diff_style
-    if (diffStyle === "stacked") return "unified"
-    // Default to "auto" behavior
-    return ctx.width > 120 ? "split" : "unified"
-  })
-
-  const ft = createMemo(() => filetype(stringValue(props.input.filePath)))
-
-  const diffContent = createMemo(() => stringValue(props.metadata.diff) ?? "")
-
+  // ponytail: one row, diff body never dumped
   return (
-    <Switch>
-      <Match when={stringValue(props.metadata.diff) !== undefined}>
-        <BlockTool title={"← Edit " + pathFormatter.format(stringValue(props.input.filePath))} part={props.part}>
-          <box paddingLeft={1}>
-            <diff
-              diff={diffContent()}
-              view={view()}
-              filetype={ft()}
-              syntaxStyle={syntax()}
-              showLineNumbers={true}
-              width="100%"
-              wrapMode={ctx.diffWrapMode()}
-              fg={theme.text}
-              addedBg={theme.diffAddedBg}
-              removedBg={theme.diffRemovedBg}
-              contextBg={theme.diffContextBg}
-              addedSignColor={theme.diffHighlightAdded}
-              removedSignColor={theme.diffHighlightRemoved}
-              lineNumberFg={theme.diffLineNumber}
-              lineNumberBg={theme.diffContextBg}
-              addedLineNumberBg={theme.diffAddedLineNumberBg}
-              removedLineNumberBg={theme.diffRemovedLineNumberBg}
-            />
-          </box>
-          <Diagnostics diagnostics={props.metadata.diagnostics} filePath={stringValue(props.input.filePath) ?? ""} />
-        </BlockTool>
-      </Match>
-      <Match when={true}>
-        <InlineTool icon="←" pending="Preparing edit…" complete={stringValue(props.input.filePath)} part={props.part}>
-          Edit {pathFormatter.format(stringValue(props.input.filePath))} {input({ replaceAll: props.input.replaceAll })}
-        </InlineTool>
-      </Match>
-    </Switch>
+    <InlineTool icon="←" pending="Preparing edit…" complete={stringValue(props.input.filePath)} part={props.part}>
+      Edit {pathFormatter.format(stringValue(props.input.filePath))} {input({ replaceAll: props.input.replaceAll })}
+    </InlineTool>
   )
 }
 
 function ApplyPatch(props: ToolProps) {
-  const ctx = use()
-  const { theme, syntax } = useTheme()
   const pathFormatter = usePathFormatter()
-
   const files = createMemo(() => parseApplyPatchFiles(props.metadata.files))
 
-  const view = createMemo(() => {
-    const diffStyle = ctx.tui.diff_style
-    if (diffStyle === "stacked") return "unified"
-    return ctx.width > 120 ? "split" : "unified"
-  })
-
-  function Diff(p: { diff: string; filePath: string }) {
-    return (
-      <box paddingLeft={1}>
-        <diff
-          diff={p.diff}
-          view={view()}
-          filetype={filetype(p.filePath)}
-          syntaxStyle={syntax()}
-          showLineNumbers={true}
-          width="100%"
-          wrapMode={ctx.diffWrapMode()}
-          fg={theme.text}
-          addedBg={theme.diffAddedBg}
-          removedBg={theme.diffRemovedBg}
-          contextBg={theme.diffContextBg}
-          addedSignColor={theme.diffHighlightAdded}
-          removedSignColor={theme.diffHighlightRemoved}
-          lineNumberFg={theme.diffLineNumber}
-          lineNumberBg={theme.diffContextBg}
-          addedLineNumberBg={theme.diffAddedLineNumberBg}
-          removedLineNumberBg={theme.diffRemovedLineNumberBg}
-        />
-      </box>
-    )
+  function title(file: { type: string; relativePath: string; filePath: string }) {
+    if (file.type === "delete") return "Deleted " + file.relativePath
+    if (file.type === "add") return "Created " + file.relativePath
+    if (file.type === "move") return "Moved " + pathFormatter.format(file.filePath) + " → " + file.relativePath
+    return "Patched " + file.relativePath
   }
 
-  function title(file: { type: string; relativePath: string; filePath: string; deletions: number }) {
-    if (file.type === "delete") return "# Deleted " + file.relativePath
-    if (file.type === "add") return "# Created " + file.relativePath
-    if (file.type === "move") return "# Moved " + pathFormatter.format(file.filePath) + " → " + file.relativePath
-    return "← Patched " + file.relativePath
-  }
-
+  // ponytail: one row per file, diff body never dumped
   return (
     <Switch>
       <Match when={files().length > 0}>
         <For each={files()}>
           {(file) => (
-            <BlockTool title={title(file)} part={props.part}>
-              <Show
-                when={file.type !== "delete"}
-                fallback={
-                  <text fg={theme.diffRemoved}>
-                    -{file.deletions} line{file.deletions !== 1 ? "s" : ""}
-                  </text>
-                }
-              >
-                <Diff diff={file.patch} filePath={file.filePath} />
-                <Diagnostics diagnostics={props.metadata.diagnostics} filePath={file.movePath ?? file.filePath} />
-              </Show>
-            </BlockTool>
+            <InlineTool icon="←" pending="Preparing patch…" failure="Patch failed" complete={true} part={props.part}>
+              {title(file)}
+            </InlineTool>
           )}
         </For>
       </Match>
@@ -2516,24 +2272,8 @@ function ApplyPatch(props: ToolProps) {
   )
 }
 
-function TodoWrite(props: ToolProps) {
-  const todos = createMemo(() => parseTodos(props.input.todos))
-  return (
-    <Switch>
-      <Match when={parseTodos(props.metadata.todos).length}>
-        <BlockTool title="# Todos" part={props.part}>
-          <box>
-            <For each={todos()}>{(todo) => <TodoItem status={todo.status} content={todo.content} />}</For>
-          </box>
-        </BlockTool>
-      </Match>
-      <Match when={true}>
-        <InlineTool icon="⚙" pending="Updating todos…" failure="Todo update failed" complete={false} part={props.part}>
-          Updating todos…
-        </InlineTool>
-      </Match>
-    </Switch>
-  )
+function TodoWrite(_props: ToolProps) {
+  return <></>
 }
 
 function Question(props: ToolProps) {
