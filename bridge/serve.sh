@@ -1,0 +1,5 @@
+#!/bin/sh
+export XDG_CONFIG_HOME="$HOME/.config/lightcode-root"
+export XDG_DATA_HOME="$HOME/.local/share/lightcode"
+export XDG_CACHE_HOME="$HOME/.cache/lightcode"
+exec "$HOME/.local/bin/lightcode-bin.exe" serve --port 4098

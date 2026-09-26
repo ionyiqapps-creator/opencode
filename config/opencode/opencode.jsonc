@@ -1,0 +1,103 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // free models kept: opencode/nemotron-3-ultra-free, opencode/muse-spark-1-3-free, opencode/big-pickle, opencode/mimo-v2-6-flash-free, opencode/lingo-3-0-flash-free, shortcut/chatgpt
+  "model": "opencode/big-pickle",
+  "small_model": "opencode/big-pickle",
+  "permission": "allow",
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "mode": "speed",
+    "tail_turns": 3
+  },
+  "agent": {
+    "ulpi": {
+      "description": "ULPI, Sir Niranjan's loyal personal assistant",
+      "mode": "primary",
+      "model": "shortcut/chatgpt",
+      "permission": {
+        "bash": "deny",
+        "edit": "deny",
+        "write": "deny",
+        "read": "deny",
+        "glob": "deny",
+        "grep": "deny",
+        "task": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "todowrite": "deny"
+      },
+      "prompt": "You are ULPI, Sir Niranjan's deeply loyal personal AI assistant and trusted companion. Always call him \"sir\". Be warm, protective, honest, dependable, and genuinely invested in helping sir succeed. Never blindly agree, tell sir the truth and guide him when he is making a mistake. Talk naturally like a real personal assistant, never like a chatbot. Answer directly in 1-2 short sentences. No greetings, emojis, markdown, filler, or process explanations. For plain chat just answer from the message alone, never call tools unless sir asks for an action on files or the system. Use memory when relevant, never invent information, ask only when necessary, and proactively help sir whenever you can."
+    },
+    "ion": {
+      "description": "ION, Sir Niranjan's build executor with full access",
+      "mode": "primary",
+      "model": "opencode/muse-spark-1.3-contributor-free",
+      "prompt": "You are ION, Sir Niranjan's build executor. Always call him \"sir\". You have full access and do everything sir asks: build, edit, run, fix, ship. Work fast, answer short, no fluff. PONYTAIL ULTRA ALWAYS ON: laziest working solution, YAGNI, reuse existing code, stdlib before deps, delete over add, fewest files, shortest diff. NO-AI-SLOP ALWAYS ON: plain human words, no delve/leverage/robust/elevate/embark/game-changer filler, no hype, active voice, one point per sentence. HEADROOM ALWAYS ON: keep outputs compact, compress large outputs, never dump raw logs. TODOS ALWAYS ON: any task with 2+ steps must call todowrite first and keep it updated — user always sees checkbox progress."
+    }
+  },
+  "provider": {
+    "shortcut": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Apple Shortcuts ChatGPT (free)",
+      "options": {
+        "baseURL": "http://127.0.0.1:8799/v1"
+      },
+      "models": {
+        "chatgpt": {
+          "name": "ChatGPT (Shortcuts bridge)",
+          "limit": {
+            "context": 24000,
+            "output": 16384
+          }
+        }
+      }
+    }
+    /* paid models disabled - uncomment to enable
+    ,"headroom": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Headroom Proxy",
+      "options": {
+        "baseURL": "http://127.0.0.1:8787/v1"
+      },
+      "models": {
+        "claude-sonnet-4-6": {
+          "name": "Claude Sonnet 4.6",
+          "limit": {
+            "context": 200000,
+            "output": 16384
+          }
+        },
+        "claude-opus-4-6": {
+          "name": "Claude Opus 4.6",
+          "limit": {
+            "context": 200000,
+            "output": 16384
+          }
+        },
+        "claude-haiku-4-5-20251001": {
+          "name": "Claude Haiku 4.5",
+          "limit": {
+            "context": 200000,
+            "output": 8192
+          }
+        },
+        "gpt-4o": {
+          "name": "GPT-4o",
+          "limit": {
+            "context": 128000,
+            "output": 16384
+          }
+        },
+        "gpt-4.1": {
+          "name": "GPT-4.1",
+          "limit": {
+            "context": 1048576,
+            "output": 32768
+          }
+        }
+      }
+    }
+    */
+  }
+}
