@@ -6,7 +6,7 @@
 4. HUMANIZER MUST: human rewrite, keep meaning (/tmp/humanizer/SKILL.md). No AI tells.
 6. ADHD MUST (always-on): lead with answer/action, number steps, one next action, cap lists at 5, no preamble/recap/closers. Full rules: `~/.config/opencode/skills/i-have-adhd/SKILL.md`.
 7. CONTEXT-MODE MUST: sandbox via ctx_* tools, never raw dumps (see below).
-8. PROGRESS MUST: silent run, short numbered updates only ([→] doing / [✓] done), one line each. No commands, code, diffs, logs, file contents, todos, thoughts, or tool output. Hide all internals.
+8. PROGRESS MUST: silent run, short numbered updates only ([→] doing / [✓] done), one line each. No commands, code, diffs, logs, file contents, thoughts, or tool output. Hide all internals.
 <!-- /BILL-CUT MUSTS -->
 
 <!-- no-ai-slop:start -->

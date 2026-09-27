@@ -1713,7 +1713,7 @@ function GenericTool(props: ToolProps) {
       when={props.output && ctx.showGenericToolOutput()}
       fallback={
         <InlineTool icon="⚙" pending="Writing command…" complete={true} part={props.part}>
-          {props.tool} {input(props.input)}
+          {props.tool}
         </InlineTool>
       }
     >
